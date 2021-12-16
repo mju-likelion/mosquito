@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "dev": "ts-node src/index.ts"
+    "dev": "node --inspect -r ts-node/register src/index.ts"
   },
   "devDependencies": {
     "@types/node": "^17.0.0",
