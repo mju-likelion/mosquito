@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { chromium } from "playwright";
+import { chromium, Page } from "playwright";
 
 dotenv.config();
 
@@ -13,12 +13,15 @@ function checkEnvs() {
   });
 }
 
-async function login() {
+async function createPage() {
   const browser = await chromium.launch({
     headless: process.env.BROWSER_HEADLESS ? process.env.BROWSER_HEADLESS === "true" : true,
   });
 
-  const page = await browser.newPage();
+  return await browser.newPage();
+}
+
+async function login(page: Page) {
   await page.goto("https://apply.likelion.org/accounts/login/?next=/apply/univ/17");
 
   await page.fill("#id_username", process.env.username!);
@@ -28,5 +31,10 @@ async function login() {
   // await browser.close();
 }
 
-checkEnvs();
-login();
+async function crawl() {
+  checkEnvs();
+  const page = await createPage();
+  await login(page);
+}
+
+crawl();
