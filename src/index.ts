@@ -26,15 +26,29 @@ async function login(page: Page) {
 
   await page.fill("#id_username", process.env.username!);
   await page.fill("#id_password", process.env.password!);
-  await page.click("button[type='submit']");
+  page.click("button[type='submit']");
+  await page.waitForNavigation();
+}
 
-  // await browser.close();
+async function getIndividualLink(page: Page) {
+  return await page.evaluate(() => {
+    const links = [];
+    const aTags = document.querySelectorAll(".applicant_page > a");
+    console.log(aTags);
+    for (const aTag of aTags) {
+      // @ts-ignore
+      links.push(aTag.href);
+    }
+    return links;
+  });
 }
 
 async function crawl() {
   checkEnvs();
   const page = await createPage();
   await login(page);
+  const links = await getIndividualLink(page);
+  console.log(links);
 }
 
 crawl();
