@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { chromium, Page } from "playwright";
+import { Browser, chromium, Page } from "playwright";
 
 dotenv.config();
 
@@ -18,7 +18,7 @@ async function createPage() {
     headless: process.env.BROWSER_HEADLESS ? process.env.BROWSER_HEADLESS === "true" : true,
   });
 
-  return await browser.newPage();
+  return { browser, page: await browser.newPage() };
 }
 
 async function login(page: Page) {
@@ -43,12 +43,37 @@ async function getIndividualLink(page: Page) {
   });
 }
 
+async function printApplicant(page: Page, link: string) {
+  await page.goto(link);
+
+  const name = await page.locator("#likelion_num h3").innerText();
+  const sid = await page.locator(".user_information p >> nth=0").innerText();
+  const major = await page.locator(".user_information p >> nth=2").innerText();
+  const phone = await page.locator(".user_information p >> nth=3").innerText();
+  const email = await page.locator(".user_information p >> nth=5").innerText();
+  console.log(name, sid, major, phone, email);
+
+  const motive = await page.locator(".m_mt >> nth=0 ").innerText();
+  const wannaMake = await page.locator(".m_mt >> nth=1").innerText();
+  const projectExperience = await page.locator(".m_mt >> nth=2").innerText();
+  const overcomeExperience = await page.locator(".m_mt >> nth=3").innerText();
+  const goals = await page.locator(".m_mt >> nth=4").innerText();
+  console.log(motive, wannaMake, projectExperience, overcomeExperience, goals);
+}
+
+async function closeBrowser(browser: Browser) {
+  await browser.close();
+}
+
 async function crawl() {
   checkEnvs();
-  const page = await createPage();
+  const { browser, page } = await createPage();
   await login(page);
   const links = await getIndividualLink(page);
-  console.log(links);
+  for (const link of links) {
+    await printApplicant(page, link);
+  }
+  await closeBrowser(browser);
 }
 
 crawl();
