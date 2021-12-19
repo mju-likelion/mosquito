@@ -1,5 +1,8 @@
 import dotenv from "dotenv";
-import { Browser, chromium, Page } from "playwright";
+import { existsSync } from "fs";
+import { mkdir, writeFile } from "fs/promises";
+import { unparse } from "papaparse";
+import { Browser, BrowserContext, chromium, Page } from "playwright";
 
 dotenv.config();
 
@@ -17,8 +20,10 @@ async function createPage() {
   const browser = await chromium.launch({
     headless: process.env.BROWSER_HEADLESS ? process.env.BROWSER_HEADLESS === "true" : true,
   });
+  const context = await browser.newContext();
+  const page = await context.newPage();
 
-  return { browser, page: await browser.newPage() };
+  return { browser, context, page };
 }
 
 async function login(page: Page) {
@@ -43,22 +48,52 @@ async function getIndividualLink(page: Page) {
   });
 }
 
-async function printApplicant(page: Page, link: string) {
+async function parsePage(context: BrowserContext, link: string) {
+  const page = await context.newPage();
   await page.goto(link);
 
-  const name = await page.locator("#likelion_num h3").innerText();
-  const sid = await page.locator(".user_information p >> nth=0").innerText();
-  const major = await page.locator(".user_information p >> nth=2").innerText();
-  const phone = await page.locator(".user_information p >> nth=3").innerText();
-  const email = await page.locator(".user_information p >> nth=5").innerText();
-  console.log(name, sid, major, phone, email);
+  const userInfo: {
+    name?: string;
+    sid?: string;
+    major?: string;
+    phone?: string;
+    email?: string;
+    motive?: string;
+    wannaMake?: string;
+    projectExperience?: string;
+    overcomeExperience?: string;
+    goals?: string;
+  } = {};
 
-  const motive = await page.locator(".m_mt >> nth=0 ").innerText();
-  const wannaMake = await page.locator(".m_mt >> nth=1").innerText();
-  const projectExperience = await page.locator(".m_mt >> nth=2").innerText();
-  const overcomeExperience = await page.locator(".m_mt >> nth=3").innerText();
-  const goals = await page.locator(".m_mt >> nth=4").innerText();
-  console.log(motive, wannaMake, projectExperience, overcomeExperience, goals);
+  userInfo.name = await page.locator("#likelion_num h3").innerText();
+  userInfo.sid = await page.locator(".user_information p >> nth=0").innerText();
+  userInfo.major = await page.locator(".user_information p >> nth=2").innerText();
+  userInfo.phone = await page.locator(".user_information p >> nth=3").innerText();
+  userInfo.email = await page.locator(".user_information p >> nth=5").innerText();
+
+  userInfo.motive = await page.locator(".m_mt >> nth=0 ").innerText();
+  userInfo.wannaMake = await page.locator(".m_mt >> nth=1").innerText();
+  userInfo.projectExperience = await page.locator(".m_mt >> nth=2").innerText();
+  userInfo.overcomeExperience = await page.locator(".m_mt >> nth=3").innerText();
+  userInfo.goals = await page.locator(".m_mt >> nth=4").innerText();
+
+  console.log(userInfo.name);
+
+  await page.close();
+
+  return userInfo;
+}
+
+async function writeCsv(data: string) {
+  const directory = process.cwd() + "/data";
+
+  if (!existsSync(directory)) {
+    await mkdir(directory);
+  }
+
+  const result = await writeFile(directory + "/crawl.csv", data);
+
+  console.log(result);
 }
 
 async function closeBrowser(browser: Browser) {
@@ -67,12 +102,14 @@ async function closeBrowser(browser: Browser) {
 
 async function crawl() {
   checkEnvs();
-  const { browser, page } = await createPage();
+  const { browser, context, page } = await createPage();
   await login(page);
   const links = await getIndividualLink(page);
-  for (const link of links) {
-    await printApplicant(page, link);
-  }
+  const data = await Promise.all(links.map(link => parsePage(context, link)));
+  const csvData = unparse(data, {
+    newline: "\n",
+  });
+  await writeCsv(csvData);
   await closeBrowser(browser);
 }
 

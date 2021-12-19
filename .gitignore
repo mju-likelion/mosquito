@@ -128,3 +128,4 @@ dist
 .svelte-kit
 
 .idea/
+data/
